@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,4 +5,84 @@ generator client {
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
+}
+
+model Association {
+  id           String        @id @default(uuid())
+  name         String
+  email        String        @unique
+
+  products     Product[]
+  categories   Category[]
+  transactions Transaction[]
+}
+
+model Product {
+  id             String        @id @default(uuid())
+  name           String
+  description    String
+  pricePerUnit   Float         // prix de vente par unité de base
+  stock          Int           @default(0)  // stock en unités de base
+  unit           String        // unité de base (kg, bouteille, litre)
+  imageUrl       String?
+
+  categoryId     String
+  associationId  String?
+
+  category       Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  association    Association?  @relation(fields: [associationId], references: [id])
+  transactions   Transaction[]
+  conversions    Conversion[]
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model Category {
+  id             String        @id @default(uuid())
+  name           String
+  description    String?
+
+  associationId  String?
+  association    Association?  @relation(fields: [associationId], references: [id])
+  products       Product[]
+}
+
+model Conversion {
+  id             String        @id @default(uuid())
+  productId      String
+  unitName       String        // ex: "sac", "casier"
+  quantityInBase Int           // ex: sac = 25 kg, casier = 12 bouteilles
+  pricePerUnit   Float         // prix en devise de référence (USD)
+
+  product        Product       @relation(fields: [productId], references: [id])
+  transactions   Transaction[] // opposite relation field
+}
+
+model Currency {
+  id        String        @id @default(uuid())
+  code      String        @unique // USD, CDF, etc.
+  rate      Float         // taux par rapport à devise de référence (USD)
+  transactions Transaction[]
+}
+
+model Transaction {
+  id             String        @id @default(uuid())
+  type           String        // "achat" ou "vente"
+  quantity       Int           // quantité dans l’unité choisie
+  unit           String        // unité utilisée pour la transaction (kg, sac, bouteille)
+  totalUSD       Float         // total en USD
+  totalCurrency  Float         // total en devise choisie
+  currencyId     String
+  conversionId   String?       // si achat en gros, référence Conversion
+
+  productId      String
+  associationId  String?
+
+  product        Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  association    Association?  @relation(fields: [associationId], references: [id])
+  conversion     Conversion?   @relation(fields: [conversionId], references: [id])
+  currency       Currency      @relation(fields: [currencyId], references: [id])
+
+  createdAt      DateTime      @default(now())
 }
