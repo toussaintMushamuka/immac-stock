@@ -1,3 +1,4 @@
+import { UserButton } from "@clerk/nextjs";
 import { Icon, ListTree, Menu, PackagePlus, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -49,6 +50,7 @@ const NavBar = () => {
 
         <div className="hidden space-x-2 sm:flex items-center">
           {renderLinks("btn")}
+          <UserButton />
         </div>
       </div>
 

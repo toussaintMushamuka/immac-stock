@@ -15,15 +15,16 @@ model Association {
   products     Product[]
   categories   Category[]
   transactions Transaction[]
+  expenses     Expense[]
 }
 
 model Product {
   id             String        @id @default(uuid())
   name           String
   description    String
-  pricePerUnit   Float         // prix de vente par unité de base
+  pricePerUnit   Float         // prix de vente par unité de base (en USD)
   stock          Int           @default(0)  // stock en unités de base
-  unit           String        // unité de base (kg, bouteille, litre)
+  unit           String        // unité de base (kg, bouteille, litre…)
   imageUrl       String?
 
   categoryId     String
@@ -56,32 +57,90 @@ model Conversion {
   pricePerUnit   Float         // prix en devise de référence (USD)
 
   product        Product       @relation(fields: [productId], references: [id])
-  transactions   Transaction[] // opposite relation field
+  transactions   Transaction[]
 }
 
 model Currency {
   id        String        @id @default(uuid())
   code      String        @unique // USD, CDF, etc.
-  rate      Float         // taux par rapport à devise de référence (USD)
+  rate      Float         // taux par rapport à la devise de référence (USD)
   transactions Transaction[]
+  payments   Payment[]
+  expenses   Expense[]
+}
+
+model Client {
+  id            String         @id @default(uuid())
+  name          String
+  phone         String?        @unique
+  email         String?        @unique
+  address       String?
+
+  transactions  Transaction[]
+  debts         Debt[]
 }
 
 model Transaction {
   id             String        @id @default(uuid())
   type           String        // "achat" ou "vente"
-  quantity       Int           // quantité dans l’unité choisie
-  unit           String        // unité utilisée pour la transaction (kg, sac, bouteille)
+  quantity       Int           // quantité vendue/achetée
+  unit           String        // unité utilisée (kg, sac, bouteille…)
   totalUSD       Float         // total en USD
   totalCurrency  Float         // total en devise choisie
+  paymentStatus  String        @default("paid") // paid, credit, partial
   currencyId     String
-  conversionId   String?       // si achat en gros, référence Conversion
-
+  conversionId   String?
+  clientId       String?
   productId      String
   associationId  String?
 
   product        Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
   association    Association?  @relation(fields: [associationId], references: [id])
   conversion     Conversion?   @relation(fields: [conversionId], references: [id])
+  currency       Currency      @relation(fields: [currencyId], references: [id])
+  client         Client?       @relation(fields: [clientId], references: [id])
+  debt           Debt?
+
+  createdAt      DateTime      @default(now())
+}
+
+model Debt {
+  id             String       @id @default(uuid())
+  amountUSD      Float        // montant total dû en USD
+  amountCurrency Float        // montant total dû en devise choisie
+  status         String       @default("pending") // pending, partial, paid
+  dueDate        DateTime?    // date limite de paiement
+
+  clientId       String
+  transactionId  String @unique
+
+  client         Client       @relation(fields: [clientId], references: [id])
+  transaction    Transaction  @relation(fields: [transactionId], references: [id])
+  payments       Payment[]
+}
+
+model Payment {
+  id             String    @id @default(uuid())
+  amountUSD      Float
+  amountCurrency Float
+  currencyId     String
+  debtId         String
+
+  debt           Debt      @relation(fields: [debtId], references: [id])
+  currency       Currency  @relation(fields: [currencyId], references: [id])
+
+  createdAt      DateTime  @default(now())
+}
+
+model Expense {
+  id             String        @id @default(uuid())
+  description    String
+  amountUSD      Float
+  amountCurrency Float
+  currencyId     String
+  associationId  String?
+
+  association    Association?  @relation(fields: [associationId], references: [id])
   currency       Currency      @relation(fields: [currencyId], references: [id])
 
   createdAt      DateTime      @default(now())
